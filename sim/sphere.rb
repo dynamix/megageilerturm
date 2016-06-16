@@ -30,6 +30,9 @@ end
 strip = Array.new 12 do [] end
 
 (0..29).each do |a|
+
+  a = 29 - a
+
   r =  a * (180/29.0) * PI / 180.0
   v = [sin(r), cos(r), 0]
   v[0] += a < 30 ? 0.15 : -0.3
@@ -40,9 +43,10 @@ strip = Array.new 12 do [] end
 end
 
 result = (0..5).map do |i|
-  (strip[i] + strip[i+6]).map do |x|
+  (strip[i] + strip[i+6].reverse()).map do |x|
     {point:x}
   end
 end.flatten
 
-IO.write('test.json', result.to_json)
+#IO.write('test.json', result.to_json)
+puts result.to_json

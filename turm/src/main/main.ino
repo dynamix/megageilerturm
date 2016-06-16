@@ -60,11 +60,11 @@
 // color sensor:
 // - pick up color and just adjust
 
-#define BUTTON_PIN  4
-#define DATA_PIN    3
+#define BUTTON_PIN  10
+#define DATA_PIN    6
 #define LED_TYPE    WS2811
 #define COLOR_ORDER GRB
-#define NUM_LEDS    360
+#define NUM_LEDS    30
 
 CRGB leds[NUM_LEDS];
 
@@ -72,20 +72,26 @@ uint8_t button = 0;
 
 void setup() {
 	delay(3000); // if we fucked it up - great idea by fastled :D
-	pinMode(BUTTON_PIN, INPUT);
+	FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+	pinMode(BUTTON_PIN, INPUT_PULLUP);
 }
 
 int bs = 0;
 
 void check_button() {
 	bs = digitalRead(BUTTON_PIN);
-	if (bs == HIGH) {
+	Serial.print(bs);
+	if (bs == LOW) {
 		button++;
+		button = button % 15;
 	}
-	Serial.print(button);
+	// Serial.print(button);
 }
 
 void loop() {
+	FastLED.clear();
+	leds[ button ] += CRGB::White;
+	FastLED.show();
 	// check if our main  button was pressed
 	EVERY_N_SECONDS(1) { check_button(); }
 }

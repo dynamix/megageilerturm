@@ -2,8 +2,16 @@ import opc
 import time
 import socket
 
-
 def pix(b,i):
+    # translate zigzag
+    x = int(i / 30)
+    if x % 2 == 0:
+        y = i % 30
+        x = int(x / 2)
+    else:
+        y = 29 - (i%30)
+        x = int(x/2) + 6
+    i = y*12+x
     o = i * 3
     return [ ord(b[o]) , ord(b[o+1]), ord(b[o+2]) ]
 
@@ -24,18 +32,25 @@ else:
 
 while True:
     b = f.read(360*3)
+
     pixels = [ pix(b,i) for i in range(360)]
-    p2 = []
-    for x in range(0,12):
-        for y in range(0,30):
-            p2.append(pixels[y*12+x])
+    # p2 = []
+    # for x in range(0,12):
+    #     for y in range(0,30):
+    #          if x % 2 == 0:
+    #             y = y * 12
+    #         else:
+    #             y =
+
+    #         p2.append(pixels[y+x])
+
 
     # for p in pixels:
     #     p[0] = p[0] - 5
     #     if p[0] < 0:
     #         p[0] = 255
 
-    if client.put_pixels(p2, channel=0):
+    if client.put_pixels(pixels, channel=0):
         pass
     else:
         print 'not connected'
