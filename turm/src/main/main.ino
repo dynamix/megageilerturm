@@ -464,9 +464,9 @@ void sparksAndRainbowSetup() {
 uint16_t xy60x6(uint8_t x, uint8_t y) {
     if(y > 29) {
         x = x + 6;
-        y = 29 - y;
+        y = 59 - y;
     }
-    return x * 30 + y;
+    return (x * 30) + y;
 }
 
 void threeSnakes() {
@@ -488,20 +488,30 @@ void threeSnakes() {
       snake1 = 0;
     }
 
-    Serial.println(snake1);
+    snake3++;
+    if(snake3 >= 60) {
+      snake3 = 0;
+    }
 
+    snake2--;
+    if(snake1 >= 60) {
+      snake1 = 60;
+    }
 
-    for(int i = 0; i < SNAKE_LENGTH; i ++) {
-        Serial.println(xy60x6(3,(snake1+i) % 60));
-       leds[ xy60x6(3,(snake1+i) % 60) ] = CHSV(100 + hue,192,i*40);
-       // leds[p] = CHSV((32*i) + hue,192+10,64);
-       // leds[p+1] = CHSV((32*i) + hue,192+20,64);
+    for(int j = 0; j < 4; j ++) {
+        for(int i = 0; i < SNAKE_LENGTH; i ++) {
+           leds[ xy60x6(j,(snake1+i+j*2) % 60) ] = CHSV(100 + hue,192,170+ i*15);
+           leds[ xy60x6(j,(snake2+i+j*2) % 60) ] += CHSV(50 + hue,192,170+ i*15);
+           leds[ xy60x6(j,(snake3+i+j*2) % 60) ] += CHSV(hue,192,170+ i*15);
+           // leds[p] = CHSV((32*i) + hue,192+10,64);
+           // leds[p+1] = CHSV((32*i) + hue,192+20,64);
+        }
     }
 
 }
 
 void threeSnakesSetup() {
-    currentDelay = 20;
+    currentDelay = 200;
 }
 
 
