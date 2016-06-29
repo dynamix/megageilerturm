@@ -239,8 +239,8 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {colorWheel,randomBluePixelsOnSphere,ambientRedCycle ,cycleSD, simpleAudio};
-Modes setupForModes = {none,none,ambientRedCycleSetup,setupCycleSD,none};
+Modes modes =         {colorWheel,randomBluePixelsOnSphere,ambientRedCycle ,cycleSD, simpleAudio,sparks, sparksAndRainbow, threeSnakes};
+Modes setupForModes = {none,none,ambientRedCycleSetup,setupCycleSD,none,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup};
 
 // the current active main mode
 uint8_t currentMode = 0;
@@ -276,8 +276,6 @@ int lvl       = 10;     // audio level dampend
 int minLvlAvg = 0;
 int maxLvlAvg = 512;
 byte volumeSampleIndex = 0;
-// Calculate bar height based on dynamic min/max levels (fixed point):
-// height = TOP * (lvl - minLvlAvg) / (long)(maxLvlAvg - minLvlAvg);
 
 void audioUpdate() {
   uint8_t  i;
@@ -340,8 +338,6 @@ void cycleSD() {
     nextFrameFromSD();
 }
 
-
-
 // color wheel
 //hue++;
 void colorWheel() {
@@ -401,7 +397,113 @@ void simpleAudio() {
             leds[i*30+jj] = CRGB::Green;
         }
     }
+
+    // spitye
+    for(int j = 0; j < height; j ++) {
+        leds[NUM_SPHERE_LEDS + NUM_FIBER_LEDS + j ] = CRGB::Red;
+    }
 }
+
+void sparks() {
+    for(int j = 0; j < 5; j ++) {
+        leds[random( 0, 360 )] = CRGB::White;
+    }
+}
+
+void sparksSetup() {
+    FastLED.setBrightness(255);
+    currentDelay = 10;
+    usePotentiometer = 0;
+}
+
+void sparksAndRainbow() {
+    static int8_t dir = -1;
+    static int8_t pos = 15;
+    // for(int j = 0; j < 2; j ++) {
+    EVERY_N_MILLISECONDS(20) { leds[random( 0, 360 )] = CRGB::White; }
+
+    EVERY_N_MILLISECONDS(50) { leds[random( 360+7, 360+7+54 )] = CRGB::Red; }
+    // }
+
+    static uint8_t hue = 0;
+    hue++;
+
+    uint8_t jj = 0;
+
+    if(pos <= 1) {
+        dir = 1;
+    }
+    if(pos >= 29) {
+        dir = -1;
+    }
+    pos += dir;
+
+    for(int i = 0; i < 12; i ++) {
+        if( i % 2 == 0) {
+            jj = 30 - pos;
+        } else {
+            jj = pos;
+        }
+       uint16_t p = i*30+jj;
+
+       leds[p-1] = CHSV((32*i) + hue,192,64);
+       leds[p] = CHSV((32*i) + hue,192+10,64);
+       leds[p+1] = CHSV((32*i) + hue,192+20,64);
+    }
+
+}
+
+void sparksAndRainbowSetup() {
+    FastLED.setBrightness(255);
+    currentDelay = 10;
+    usePotentiometer = 0;
+}
+
+#define SNAKE_LENGTH 5
+
+uint16_t xy60x6(uint8_t x, uint8_t y) {
+    if(y > 29) {
+        x = x + 6;
+        y = 29 - y;
+    }
+    return x * 30 + y;
+}
+
+void threeSnakes() {
+    static uint8_t snake1 = 0;
+    static uint8_t snake2 = 20;
+    static uint8_t snake3 = 40;
+
+    // for(int j = 0; j < 2; j ++) {
+    // EVERY_N_MILLISECONDS(20) { leds[random( 0, 360 )] = CRGB::White; }
+
+    EVERY_N_MILLISECONDS(50) { leds[random( 360+7, 360+7+54 )] = CRGB::Red; }
+    // }
+
+    static uint8_t hue = 0;
+    hue++;
+
+    snake1++;
+    if(snake1 >= 60) {
+      snake1 = 0;
+    }
+
+    Serial.println(snake1);
+
+
+    for(int i = 0; i < SNAKE_LENGTH; i ++) {
+        Serial.println(xy60x6(3,(snake1+i) % 60));
+       leds[ xy60x6(3,(snake1+i) % 60) ] = CHSV(100 + hue,192,i*40);
+       // leds[p] = CHSV((32*i) + hue,192+10,64);
+       // leds[p+1] = CHSV((32*i) + hue,192+20,64);
+    }
+
+}
+
+void threeSnakesSetup() {
+    currentDelay = 20;
+}
+
 
 
 void checkSerial() {
