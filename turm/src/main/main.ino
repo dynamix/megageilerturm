@@ -131,6 +131,10 @@ Adafruit_BluefruitLE_UART ble(Serial1, -1);
 
 uint8_t button = 0;
 
+// the current active main mode
+uint8_t currentMode = 0;
+
+
 uint16_t bytesInStrip = NUM_LEDS * 3;
 uint16_t sphereBytes = NUM_SPHERE_LEDS * 3;
 
@@ -207,11 +211,19 @@ uint8_t usePotentiometer = 1;
 
 
 void checkButton() {
-    int bs = 0;
+  int bs = 0;
+  static uint8_t pressedFor = 0;
 	bs = digitalRead(BUTTON_PIN);
-	if (bs == LOW) {
-        nextMode();
-	}
+	if(bs == LOW) {
+      pressedFor++;
+      nextMode();
+	} else {
+    pressedFor = 0;
+  }
+  if(pressedFor == 3) {
+    currentMode = ARRAY_SIZE(modes);
+    nextMode();
+  }
 }
 
 
@@ -240,11 +252,9 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {ambientAllRainbow,ambientSparkling, ambientOnlyNoneSideEmiting,ambientRedCycle,colorWheel,fastColorWheel,colorWheelPulsing,segmentTurning,ringAudio,randomBluePixelsOnSphere, cycleSD, simpleAudio,sparks, sparksAndRainbow, threeSnakes };
-Modes setupForModes = {ambientAllRainbowSetup,ambientSparklingSetup,ambientOnlyNoneSideEmitingSetup,ambientRedCycleSetup,none,none,none,segmentTurningSetup,ringAudioSetup,none, setupCycleSD,none,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup };
+Modes modes =         {ambientAllRainbow, ambientOnlyNoneSideEmiting, ambientRedCycle, ringAudio,simpleAudio, colorWheel,fastColorWheel,colorWheelPulsing,segmentTurning,randomBluePixelsOnSphere, cycleSD, sparks, rainbowSparks, sparksAndRainbow, threeSnakes };
+Modes setupForModes = {ambientAllRainbowSetup, ambientOnlyNoneSideEmitingSetup,ambientRedCycleSetup, ringAudioSetup, none, none,none,none,segmentTurningSetup,none, setupCycleSD,sparksSetup, rainbowSparksSetup, sparksAndRainbowSetup, threeSnakesSetup };
 
-// the current active main mode
-uint8_t currentMode = 0;
 
 // we have some modes how we use the audio data to modulate the colors
 uint8_t audioMode = 0; // don't use audio data
@@ -543,6 +553,21 @@ void sparksSetup() {
     currentDelay = 10;
     usePotentiometer = 0;
 }
+
+void rainbowSparks() {
+    static uint8_t hue = 0;
+    hue++;
+    for(int j = 0; j < 5; j ++) {
+        leds[random( 0, 360 )] = CHSV(hue,210,255);
+    }
+}
+
+void rainbowSparksSetup() {
+    FastLED.setBrightness(255);
+    currentDelay = 10;
+    usePotentiometer = 0;
+}
+
 
 void sparksAndRainbow() {
     static int8_t dir = -1;
