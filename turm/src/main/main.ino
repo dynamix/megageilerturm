@@ -557,7 +557,7 @@ void sparksSetup() {
 
 void randomSparks() {
     for(int j = 0; j < 5; j ++) {
-        leds[random( 0, 360 )] = CRGB::CSV(random(0, 255),190,255);
+        leds[random( 0, 360 )] = CHSV(random(0, 255),190,255);
     }
 }
 
