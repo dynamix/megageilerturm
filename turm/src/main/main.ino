@@ -253,8 +253,8 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {ambientAllRainbow, ambientOnlyNoneSideEmiting, ambientRedCycle, ringAudio,simpleAudio, colorWheel,fastColorWheel,colorWheelPulsing,segmentTurning,randomBluePixelsOnSphere, cycleSD, sparks, rainbowSparks, sparksAndRainbow, threeSnakes };
-Modes setupForModes = {ambientAllRainbowSetup, ambientOnlyNoneSideEmitingSetup,ambientRedCycleSetup, ringAudioSetup, none, none,none,none,segmentTurningSetup,none, setupCycleSD,sparksSetup, rainbowSparksSetup, sparksAndRainbowSetup, threeSnakesSetup };
+Modes modes =         {ambientAllRainbow, ambientOnlyNoneSideEmiting, ambientRedCycle, ringAudio,simpleAudio, colorWheel,fastColorWheel,colorWheelPulsing,segmentTurning,randomBluePixelsOnSphere, cycleSD, sparks, rainbowSparks,randomSparks, sparksAndRainbow, threeSnakes };
+Modes setupForModes = {ambientAllRainbowSetup, ambientOnlyNoneSideEmitingSetup,ambientRedCycleSetup, ringAudioSetup, none, none,none,none,segmentTurningSetup,none, setupCycleSD,sparksSetup, rainbowSparksSetup, sparksAndRainbowSetup,randomSparksSetup, threeSnakesSetup };
 
 
 // we have some modes how we use the audio data to modulate the colors
@@ -554,6 +554,19 @@ void sparksSetup() {
     currentDelay = 10;
     usePotentiometer = 0;
 }
+
+void randomSparks() {
+    for(int j = 0; j < 5; j ++) {
+        leds[random( 0, 360 )] = CRGB::CSV(random(0, 255),190,255);
+    }
+}
+
+void randomSparksSetup() {
+    FastLED.setBrightness(255);
+    currentDelay = 20;
+    usePotentiometer = 0;
+}
+
 
 void rainbowSparks() {
     static uint8_t hue = 0;
