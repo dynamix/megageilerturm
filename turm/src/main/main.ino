@@ -131,8 +131,6 @@ Adafruit_BluefruitLE_UART ble(Serial1, -1);
 
 uint8_t button = 0;
 
-// the current active main mode
-uint8_t currentMode = 0;
 
 
 uint16_t bytesInStrip = NUM_LEDS * 3;
@@ -209,6 +207,9 @@ void setup() {
 
 uint8_t usePotentiometer = 1;
 
+// the current active main mode
+int8_t currentMode = 0;
+
 
 void checkButton() {
   int bs = 0;
@@ -221,7 +222,7 @@ void checkButton() {
     pressedFor = 0;
   }
   if(pressedFor == 3) {
-    currentMode = ARRAY_SIZE(modes);
+    currentMode = -1;
     nextMode();
   }
 }
