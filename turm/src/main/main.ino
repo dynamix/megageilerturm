@@ -200,6 +200,7 @@ void setup() {
 
 
     FastLED.setMaxPowerInVoltsAndMilliamps(5, 2000);
+
 }
 
 uint8_t usePotentiometer = 1;
@@ -239,8 +240,8 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {colorWheel,randomBluePixelsOnSphere,ambientRedCycle ,cycleSD, simpleAudio,sparks, sparksAndRainbow, threeSnakes};
-Modes setupForModes = {none,none,ambientRedCycleSetup,setupCycleSD,none,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup};
+Modes modes =         {ambientAllRainbow,ambientSparkling, ambientOnlyNoneSideEmiting,ambientRedCycle,colorWheel,fastColorWheel,colorWheelPulsing,segmentTurning,ringAudio,randomBluePixelsOnSphere, cycleSD, simpleAudio,sparks, sparksAndRainbow, threeSnakes };
+Modes setupForModes = {ambientAllRainbowSetup,ambientSparklingSetup,ambientOnlyNoneSideEmitingSetup,ambientRedCycleSetup,none,none,none,segmentTurningSetup,ringAudioSetup,none, setupCycleSD,none,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup };
 
 // the current active main mode
 uint8_t currentMode = 0;
@@ -342,12 +343,49 @@ void cycleSD() {
 //hue++;
 void colorWheel() {
     static uint8_t hue = 0;
+    hue++;
     for(int i = 0; i < NUM_STRIPS; i++) {
         for(int j = 0; j < NUM_LEDS_PER_STRIP; j++) {
             leds[(i*NUM_LEDS_PER_STRIP) + j] = CHSV((32*i) + hue+j,192,255);
         }
     }
 }
+
+void colorWheelPulsing() {
+    static uint8_t hue = 0;
+    static uint8_t pulse = 255;
+    static int8_t dir = -1;
+
+    pulse += dir;
+
+    if(pulse < 100) {
+      dir = 1;
+    }
+    if(pulse > 253) {
+      dir = -1;
+    }
+
+    hue++;
+    for(int i = 0; i < NUM_STRIPS; i++) {
+        for(int j = 0; j < NUM_LEDS_PER_STRIP; j++) {
+            leds[(i*NUM_LEDS_PER_STRIP) + j] = CHSV((32*i) + hue+j,192,pulse);
+        }
+    }
+}
+
+
+void fastColorWheel() {
+    static uint8_t hue = 0;
+    hue++;
+    hue++;
+    hue++;
+    for(int i = 0; i < NUM_STRIPS; i++) {
+        for(int j = 0; j < NUM_LEDS_PER_STRIP; j++) {
+            leds[(i*NUM_LEDS_PER_STRIP) + j] = CHSV((32*i) + hue+j,192,255);
+        }
+    }
+}
+
 
 void randomBluePixelsOnSphere() {
     for(int i =0;i<20;i++) {
@@ -365,8 +403,17 @@ void ambientRedCycleSetup() {
 
 void ambientRedCycle() {
     static uint8_t ambient = 0;
+    static uint8_t onBlink = 0;
+    EVERY_N_MILLISECONDS(500) { onBlink++; if(onBlink>2) onBlink = 0; }
+    if(onBlink) {
+      leds[420] = CRGB::Red;
+      leds[418] = CRGB::Red;
+      leds[416] = CRGB::Red;
+    }
+
     leds[NUM_SPHERE_LEDS + (ambient % 7)] = CHSV(250,192,255);
     EVERY_N_SECONDS(1) { ambient++ ; }
+    // leds[NUM_SPHERE_LEDS+1] = CHSV(hue,120,255);
     // leds[NUM_SPHERE_LEDS+1] = CHSV(hue,120,255);
     // leds[NUM_SPHERE_LEDS+2] = CHSV(hue,120,255);
     // leds[NUM_SPHERE_LEDS+3] = CHSV(100,120,255);
@@ -375,12 +422,93 @@ void ambientRedCycle() {
     // leds[NUM_SPHERE_LEDS+6] = CHSV(220,240,255);
 }
 
+void ambientOnlyNoneSideEmiting() {
+    static uint8_t hue = 0;
+    hue++;
+    static uint8_t onBlink = 0;
+    EVERY_N_MILLISECONDS(500) { onBlink++; if(onBlink>2) onBlink = 0; }
+    if(onBlink) {
+      leds[420] = CRGB::Red;
+      leds[418] = CRGB::Red;
+      leds[416] = CRGB::Red;
+    }
+
+      // static uint8_t ambient = 0;
+    // leds[NUM_SPHERE_LEDS + (ambient % 7)] = CHSV(250,192,255);
+    // EVERY_N_SECONDS(1) { ambient++ ; }
+    // leds[NUM_SPHERE_LEDS] = CRGB::Green; //CHSV(hue,120,255);
+    // leds[NUM_SPHERE_LEDS+2] = CRGB::Green; //CHSV(hue,120,255);
+    // leds[NUM_SPHERE_LEDS+3] = CRGB::White; //CHSV(100,120,255);
+    // leds[NUM_SPHERE_LEDS+4] = CRGB::Red; //CHSV(200,180,255);
+    leds[NUM_SPHERE_LEDS+5] = CHSV(hue,240,255);
+    leds[NUM_SPHERE_LEDS+1] = CHSV(hue-100,240,255);
+
+    // leds[NUM_SPHERE_LEDS+6] = CRGB::Cyan; //CHSV(220,240,255);
+}
+
+void ambientOnlyNoneSideEmitingSetup() {
+    usePotentiometer = 0;
+    FastLED.setBrightness(255);
+}
+
+
+
+void ambientAllRainbow() {
+    static uint8_t hue = 0;
+    hue++;
+
+    static uint8_t onBlink = 0;
+    EVERY_N_MILLISECONDS(500) { onBlink++; if(onBlink>2) onBlink = 0; }
+    if(onBlink) {
+      leds[420] = CRGB::Red;
+      leds[418] = CRGB::Red;
+      leds[416] = CRGB::Red;
+    }
+
+    leds[NUM_SPHERE_LEDS] = CHSV(hue+120,240,255);
+    leds[NUM_SPHERE_LEDS+2] = CHSV(hue+75,240,255);
+    leds[NUM_SPHERE_LEDS+3] = CHSV(hue-50,240,255);
+    leds[NUM_SPHERE_LEDS+4] = CHSV(hue,240,255);
+    leds[NUM_SPHERE_LEDS+5] = CHSV(hue+50,240,255);
+    leds[NUM_SPHERE_LEDS+1] = CHSV(hue-100,240,255);
+}
+
+void ambientAllRainbowSetup() {
+    usePotentiometer = 0;
+    FastLED.setBrightness(255);
+}
+
+void ambientSparkling() {
+    static uint8_t onBlink = 0;
+    EVERY_N_MILLISECONDS(500) { onBlink++; if(onBlink>2) onBlink = 0; }
+    if(onBlink) {
+      leds[420] = CRGB::Red;
+      leds[418] = CRGB::Red;
+      leds[416] = CRGB::Red;
+    }
+
+    static uint8_t on = 0;
+    EVERY_N_MILLISECONDS(500) { on++; if(on>2) on = 0; }
+    if(on == 1 ) {
+      leds[NUM_SPHERE_LEDS+5] = CRGB::Blue;
+      leds[NUM_SPHERE_LEDS+1] = CRGB::White;
+    }
+}
+
+void ambientSparklingSetup() {
+    usePotentiometer = 0;
+    FastLED.setBrightness(255);
+}
+
+
 
 #define TOP 30
 
 void simpleAudio() {
     audioUpdate();
     int height;
+    static uint8_t hue = 0;
+    hue++;
     height = TOP * (lvl - minLvlAvg) / (long)(maxLvlAvg - minLvlAvg);
 
     if(height < 0L)       height = 0;      // Clip output
@@ -394,7 +522,7 @@ void simpleAudio() {
             } else {
                 jj = j;
             }
-            leds[i*30+jj] = CRGB::Green;
+            leds[i*30+jj] = CHSV((32*i) + hue,192+10,255);;
         }
     }
 
@@ -511,10 +639,94 @@ void threeSnakes() {
 }
 
 void threeSnakesSetup() {
-    currentDelay = 200;
+    currentDelay = 100;
 }
 
 
+void ringAudio() {
+    audioUpdate();
+
+    uint8_t y = 0;
+    uint8_t y2 = 0;
+    uint8_t ymax = 0;
+    uint8_t peak = 0;
+
+
+
+    y = 40 * (lvl - minLvlAvg) / (long)(maxLvlAvg - minLvlAvg);
+
+    if(y < 0L)       y = 0;
+    else if(y > 29) {
+        y = 29;
+        y2 = y - 29;
+        if(y2 > 40) {
+            y2 = 40;
+        }
+    }
+
+    if( y > peak ) {
+        peak = y;
+    }
+
+    if(peak >  0)
+        peak--;
+
+    //
+    // CRGB::BlueViolet
+
+    uint8_t jj = 0;
+    for(int i = 0; i < 12; i ++) {
+
+        for(int j = 0; j < y; j ++) {
+            if( i % 2 == 0) {
+                jj = y;
+            } else {
+                jj = 30- y;
+            }
+            leds[i*30+jj] = CRGB::BlueViolet;
+        }
+
+        for(int p = peak; p > y; p--) {
+            if(p == peak) {
+                leds[i*30+jj+p] = CRGB::White;
+            } else {
+                leds[i*30+jj+p] = CRGB(CRGB::BlueViolet).fadeToBlackBy(255 - ( (peak-p) * (255/peak) ) );
+            }
+        }
+    }
+
+    for(int j = 0; j < y2; j ++) {
+        leds[NUM_SPHERE_LEDS + NUM_FIBER_LEDS + j ] = CRGB::BlueViolet;
+    }
+
+
+}
+void ringAudioSetup() {
+    currentDelay = 20;
+}
+
+void segmentTurning() {
+    static uint8_t hue = 0;
+    static int8_t segment = 0;
+    static int8_t segment2 = 6;
+    hue++;
+    segment++;
+    segment2--;
+    if(segment2 < 0) {
+      segment2 = 11;
+    }
+    if(segment >= 12) {
+      segment = 0;
+    }
+    for(uint8_t i = 0; i<30;i++) {
+      leds[30*segment+i] +=  CHSV((16*i) + hue + segment  ,192+20,210);
+      leds[30*segment2+i] +=  CHSV((16*i) + hue + segment2 ,192+20,210);
+    }
+}
+
+void segmentTurningSetup() {
+    currentDelay = 150;
+}
 
 void checkSerial() {
     if(Serial.available() > 0) {
