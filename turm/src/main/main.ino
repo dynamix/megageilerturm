@@ -175,15 +175,15 @@ void setup() {
 
 	pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  	if (!SD.begin(SD_CS_PIN)) {
-    	error("sd failed at begin");
-  	}
+//  	if (!SD.begin(SD_CS_PIN)) {
+  //  	error("sd failed at begin");
+ // 	}
 
   	// // open or create file - truncate existing file.
-  	file = SD.open("4.rec");
-  	if (!file) {
-    	error("open failed");
-  	}
+  //	file = SD.open("4.rec");
+ // 	if (!file) {
+ //   	error("open failed");//
+  //	}
 
     // Serial.begin(BAUD_RATE);
     // while (!Serial.available()) {
@@ -221,7 +221,7 @@ void checkButton() {
 	} else {
     pressedFor = 0;
   }
-  if(pressedFor == 3) {
+  if(pressedFor == 2) {
     currentMode = -1;
     nextMode();
   }
@@ -253,8 +253,8 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {ambientAllRainbow, ambientOnlyNoneSideEmiting, ambientRedCycle, ringAudio,simpleAudio, colorWheel,fastColorWheel,colorWheelPulsing,segmentTurning,randomBluePixelsOnSphere, cycleSD, sparks, rainbowSparks,randomSparks, sparksAndRainbow, threeSnakes };
-Modes setupForModes = {ambientAllRainbowSetup, ambientOnlyNoneSideEmitingSetup,ambientRedCycleSetup, ringAudioSetup, none, none,none,none,segmentTurningSetup,none, setupCycleSD,sparksSetup, rainbowSparksSetup, sparksAndRainbowSetup,randomSparksSetup, threeSnakesSetup };
+Modes modes =         {ambientAllRainbow, ambientRedCycle, ringAudio,simpleAudio, twoRingAudio,colorWheel,fastColorWheel,colorWheelPulsing,colorWheelUpDown,segmentTurning,randomBluePixelsOnSphere,   rainbowSparks,randomSparks,sparks, sparksAndRainbow, threeSnakes};
+Modes setupForModes = {ambientAllRainbowSetup, ambientRedCycleSetup, ringAudioSetup, none,twoRingAudioSetup, none,none,none,none, segmentTurningSetup,none, rainbowSparksSetup, randomSparksSetup,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup };
 
 
 // we have some modes how we use the audio data to modulate the colors
@@ -385,6 +385,23 @@ void colorWheelPulsing() {
 }
 
 
+void colorWheelUpDown() {
+    static uint8_t hue = 0;
+    hue++;
+    uint8_t jj = 0;
+    for(int i = 0; i < 12; i++) {
+        for(int j = 0; j < 30; j++) {
+              if( i % 2 == 0) {
+                jj = 30 - j;
+            } else {
+                jj = j;
+            }
+
+            leds[xy60x6(i,jj)] = CHSV((32*(j/3)) + hue,200,255);
+        }
+    }  
+}
+
 void fastColorWheel() {
     static uint8_t hue = 0;
     hue++;
@@ -395,6 +412,28 @@ void fastColorWheel() {
             leds[(i*NUM_LEDS_PER_STRIP) + j] = CHSV((32*i) + hue+j,192,255);
         }
     }
+}
+
+#define WATERFALLS 4 
+
+void waterfall() {
+   // static uint8_t[] segment = {3,7,11,2};
+   // static float[] pos = {0,0,0,0};
+   // static float[] speed = {0.2,0.5,1,0.8};
+
+ // for(int s = 0; s<WATERFALLS;s++) {
+ //   for(int p = 0;p<5;p++) {
+ //     leds[segment[s]] = CHSV(0,0,0);
+  //  }
+  //}
+
+
+
+
+}
+
+void waterfallSetup() {
+  
 }
 
 
@@ -559,11 +598,13 @@ void randomSparks() {
     for(int j = 0; j < 5; j ++) {
         leds[random( 0, 360 )] = CHSV(random(0, 255),190,255);
     }
+    leds[360+7+random( 0, 50 )] = CHSV(random(0, 255),190,255);
+    leds[360+7+random( 0, 50 )] = CHSV(random(0, 255),220,255);
 }
 
 void randomSparksSetup() {
     FastLED.setBrightness(255);
-    currentDelay = 20;
+    currentDelay = 40;
     usePotentiometer = 0;
 }
 
@@ -688,9 +729,7 @@ void ringAudio() {
     uint8_t y = 0;
     uint8_t y2 = 0;
     uint8_t ymax = 0;
-    uint8_t peak = 0;
-
-
+    static uint8_t peak = 0;
 
     y = 40 * (lvl - minLvlAvg) / (long)(maxLvlAvg - minLvlAvg);
 
@@ -707,8 +746,9 @@ void ringAudio() {
         peak = y;
     }
 
-    if(peak >  0)
-        peak--;
+    EVERY_N_MILLISECONDS(200) { if(peak >  0) peak--; }
+    
+        
 
     //
     // CRGB::BlueViolet
@@ -727,9 +767,9 @@ void ringAudio() {
 
         for(int p = peak; p > y; p--) {
             if(p == peak) {
-                leds[i*30+jj+p] = CRGB::White;
+                //leds[i*30+jj+p] = CRGB::Green;
             } else {
-                leds[i*30+jj+p] = CRGB(CRGB::BlueViolet).fadeToBlackBy(255 - ( (peak-p) * (255/peak) ) );
+               // leds[i*30+jj+p] = CHSV(200,200, 250 - ( (peak-p) * (150/peak) ) ); 
             }
         }
     }
@@ -743,6 +783,64 @@ void ringAudio() {
 void ringAudioSetup() {
     currentDelay = 20;
 }
+
+
+void twoRingAudio() {
+    audioUpdate();
+
+    uint8_t y = 0;
+    uint8_t y2 = 0;
+    uint8_t ymax = 0;
+    uint8_t peak = 0;
+    static uint8_t hue = 0;
+
+    EVERY_N_MILLISECONDS(50) { hue++; }
+
+    y = 15 * (lvl - minLvlAvg) / (long)(maxLvlAvg - minLvlAvg);
+
+    if(y < 0L)       y = 0;
+    else if(y > 15) {
+        y = 14;
+    }
+
+
+    uint8_t jj = 0;
+    uint8_t m = 0;
+    uint8_t n = 0;
+    for(int i = 0; i < 12; i ++) {
+
+        for(int j = -y; j < y; j++) {
+            
+
+            for(int z=0;z<=y;z++) {
+              m = 15 + z;
+              if( i % 2 == 0) {
+                  jj = m;
+              } else {
+                  jj = 30-m;
+              }
+              leds[i*30+jj] = CHSV(30*z+hue,180,255);
+            }
+
+            for(int z=0;z<=y;z++) {
+              m = 15 - z;
+
+              if( i % 2 == 0) {
+                  jj = m;
+              } else {
+                  jj = 30-m;
+              }
+              leds[i*30+jj] = CHSV(30*z+hue,180,255);
+            }
+        }
+
+    }
+
+}
+void twoRingAudioSetup() {
+    currentDelay = 20;
+}
+
 
 void segmentTurning() {
     static uint8_t hue = 0;
@@ -765,6 +863,14 @@ void segmentTurning() {
 
 void segmentTurningSetup() {
     currentDelay = 150;
+}
+
+void accel() {
+  
+}
+
+void accelSetup() {
+  
 }
 
 void checkSerial() {
@@ -872,7 +978,8 @@ void loop() {
 
 	// check if our main  button was pressed
     EVERY_N_MILLISECONDS(100) { checkPotentiometer(); }
-    EVERY_N_SECONDS(1) { checkButton(); checkSerial(); }
+    EVERY_N_SECONDS(1) { checkSerial(); }
+    EVERY_N_MILLISECONDS(500) { checkButton();  }
 
     // FastLED.show();
     FastLED.delay(currentDelay);
