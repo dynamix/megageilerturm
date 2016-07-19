@@ -156,6 +156,8 @@ void clear() {
     memset(leds,0,sizeof(leds));
 }
 
+uint8_t blueOk = 0;
+
 void setup() {
 
 	FastLED.addLeds<WS2811_PORTD,8>(leds, NUM_LEDS_PER_STRIP);
@@ -165,12 +167,11 @@ void setup() {
     FastLED.show();
     delay(3000); // if we fucked it up - great idea by fastled :D
 
-
-
     // init bluetooth
-    // if ( !ble.begin(true) )    {
-    //     error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
-    // }
+    if ( ble.begin(true) )    {
+      ble.sendCommandCheckOK("AT+GAPDEVNAME=megageilerturm");
+      ble.setMode(BLUEFRUIT_MODE_DATA);
+    }
 
 
 	pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -217,13 +218,13 @@ void checkButton() {
 	bs = digitalRead(BUTTON_PIN);
 	if(bs == LOW) {
       pressedFor++;
-      nextMode();
+      nextMode(1);
 	} else {
     pressedFor = 0;
   }
   if(pressedFor == 2) {
     currentMode = -1;
-    nextMode();
+    nextMode(1);
   }
 }
 
@@ -253,8 +254,8 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {ambientAllRainbow, ambientRedCycle, ringAudio,simpleAudio, twoRingAudio,colorWheel,fastColorWheel,colorWheelPulsing,colorWheelUpDown,segmentTurning,randomBluePixelsOnSphere,   rainbowSparks,randomSparks,sparks, sparksAndRainbow, threeSnakes};
-Modes setupForModes = {ambientAllRainbowSetup, ambientRedCycleSetup, ringAudioSetup, none,twoRingAudioSetup, none,none,none,none, segmentTurningSetup,none, rainbowSparksSetup, randomSparksSetup,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup };
+Modes modes =         {ambientAllRainbow, ambientRedCycle, ringAudio,simpleAudio, twoRingAudio,colorWheel,fastColorWheel,colorWheelPulsing,colorWheelUpDown,segmentTurning,randomBluePixelsOnSphere, rainbowSparks,randomSparks,sparks, sparksAndRainbow, threeSnakes};
+Modes setupForModes = {ambientAllRainbowSetup, ambientRedCycleSetup, ringAudioSetup, none,twoRingAudioSetup, none,none,none,colorWheelUpDownSetup, segmentTurningSetup,none, rainbowSparksSetup, randomSparksSetup,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup };
 
 
 // we have some modes how we use the audio data to modulate the colors
@@ -267,8 +268,10 @@ uint8_t sdIdx = 1;
 
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
-void nextMode() {
-  currentMode = (currentMode + 1) % ARRAY_SIZE(modes);
+void nextMode(uint8_t dir) {
+  currentMode = (currentMode + dir) % ARRAY_SIZE(modes);
+  if(currentMode < 0)
+    currentMode = ARRAY_SIZE(modes) - 1;
   FastLED.setBrightness(32);
   usePotentiometer = 1;
   currentDelay = 0;
@@ -384,22 +387,25 @@ void colorWheelPulsing() {
     }
 }
 
+void colorWheelUpDownSetup() {
+  currentDelay = 15;
+}
 
 void colorWheelUpDown() {
     static uint8_t hue = 0;
+    static uint8_t aaa = 0;
     hue++;
     uint8_t jj = 0;
     for(int i = 0; i < 12; i++) {
         for(int j = 0; j < 30; j++) {
               if( i % 2 == 0) {
-                jj = 30 - j;
+                jj = 29 - j;
             } else {
                 jj = j;
             }
-
             leds[xy60x6(i,jj)] = CHSV((32*(j/3)) + hue,200,255);
         }
-    }  
+    }
 }
 
 void fastColorWheel() {
@@ -414,7 +420,7 @@ void fastColorWheel() {
     }
 }
 
-#define WATERFALLS 4 
+#define WATERFALLS 4
 
 void waterfall() {
    // static uint8_t[] segment = {3,7,11,2};
@@ -433,7 +439,7 @@ void waterfall() {
 }
 
 void waterfallSetup() {
-  
+
 }
 
 
@@ -747,8 +753,8 @@ void ringAudio() {
     }
 
     EVERY_N_MILLISECONDS(200) { if(peak >  0) peak--; }
-    
-        
+
+
 
     //
     // CRGB::BlueViolet
@@ -769,7 +775,7 @@ void ringAudio() {
             if(p == peak) {
                 //leds[i*30+jj+p] = CRGB::Green;
             } else {
-               // leds[i*30+jj+p] = CHSV(200,200, 250 - ( (peak-p) * (150/peak) ) ); 
+               // leds[i*30+jj+p] = CHSV(200,200, 250 - ( (peak-p) * (150/peak) ) );
             }
         }
     }
@@ -810,7 +816,7 @@ void twoRingAudio() {
     for(int i = 0; i < 12; i ++) {
 
         for(int j = -y; j < y; j++) {
-            
+
 
             for(int z=0;z<=y;z++) {
               m = 15 + z;
@@ -866,18 +872,45 @@ void segmentTurningSetup() {
 }
 
 void accel() {
-  
+
 }
 
 void accelSetup() {
-  
+
 }
 
 void checkSerial() {
     if(Serial.available() > 0) {
         Serial.read();
-        nextMode();
+        nextMode(1);
     }
+}
+
+// function prototypes over in packetparser.cpp
+uint8_t readPacket(Adafruit_BLE *ble, uint16_t timeout);
+float parsefloat(uint8_t *buffer);
+
+// the packet buffer
+extern uint8_t packetbuffer[];
+
+void readBT() {
+  uint8_t len = readPacket(&ble, 10);
+  if (len == 0) return;
+
+    // Buttons
+  if (packetbuffer[1] == 'B') {
+    uint8_t buttnum = packetbuffer[2] - '0';
+    boolean pressed = packetbuffer[3] - '0';
+
+    if(buttnum == 6 && !pressed) {
+      nextMode(-1);
+    }
+    if(buttnum == 5 && !pressed) {
+      nextMode(1);
+    }
+    // Serial.print ("Button "); Serial.print(buttnum);
+  }
+
 }
 
 void loop() {
@@ -979,7 +1012,9 @@ void loop() {
 	// check if our main  button was pressed
     EVERY_N_MILLISECONDS(100) { checkPotentiometer(); }
     EVERY_N_SECONDS(1) { checkSerial(); }
-    EVERY_N_MILLISECONDS(500) { checkButton();  }
+    EVERY_N_MILLISECONDS(500) { checkButton(); readBT(); }
+
+
 
     // FastLED.show();
     FastLED.delay(currentDelay);
