@@ -214,7 +214,7 @@ uint8_t usePotentiometer = 1;
 
 // the current active main mode
 int8_t currentMode = 0;
-int8_t currentBrightness = MAX_BRIGHTNESS;
+uint8_t currentBrightness = MAX_BRIGHTNESS;
 
 
 void checkButton() {
