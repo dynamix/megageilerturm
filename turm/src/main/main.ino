@@ -123,6 +123,9 @@
 #define BAUD_RATE 500000
 #define CMD_NEW_DATA 1
 
+#define MAX_BRIGHTNESS 32
+#define MIN_BRIGHTNESS 8
+
 CRGB leds[NUM_LEDS];
 
 uint16_t currentDelay = 0;
@@ -162,7 +165,7 @@ void setup() {
 
 	FastLED.addLeds<WS2811_PORTD,8>(leds, NUM_LEDS_PER_STRIP);
     //.setCorrection(TypicalLEDStrip);
-    FastLED.setBrightness(32);
+    FastLED.setBrightness(MAX_BRIGHTNESS);
     FastLED.clear();
     FastLED.show();
     delay(3000); // if we fucked it up - great idea by fastled :D
@@ -211,6 +214,7 @@ uint8_t usePotentiometer = 1;
 
 // the current active main mode
 int8_t currentMode = 0;
+int8_t currentBrightness = MAX_BRIGHTNESS;
 
 
 void checkButton() {
@@ -314,10 +318,21 @@ void setMode(uint8_t mode){
   currentMode = mode;
   if(currentMode < 0)
     currentMode = ARRAY_SIZE(modes) - 1;
-  FastLED.setBrightness(32);
+  setBrightness(MAX_BRIGHTNESS);
   usePotentiometer = 1;
   currentDelay = 0;
   setupForModes[currentMode]();
+}
+
+void setBrightness(uint8_t brightness){
+  currentBrightness = brightness;
+  if (currentBrightness > MAX_BRIGHTNESS) {
+    currentBrightness = MAX_BRIGHTNESS;
+  }
+  if (currentBrightness < MIN_BRIGHTNESS){
+    currentBrightness = MIN_BRIGHTNESS;
+  }
+  FastLED.setBrightness(currentBrightness);
 }
 
 
@@ -946,11 +961,18 @@ void readBT() {
 
     // button released
     if(!pressed){
-      // UP & DOWN arrows
+      // UP & DOWN arrows -> brightness
       if(buttnum == 6) {
-        nextMode(-1);
+        setBrightness(currentBrightness + 8);
       }
       if(buttnum == 5) {
+        setBrightness(currentBrightness - 8);
+      }
+      // SIDE BUTTONS -> mode switch
+      if(buttnum == 7) {
+        nextMode(-1);
+      }
+      if(buttnum == 8) {
         nextMode(1);
       }
 
