@@ -171,6 +171,7 @@ void setup() {
     if ( ble.begin(true) )    {
       ble.sendCommandCheckOK("AT+GAPDEVNAME=megageilerturm");
       ble.setMode(BLUEFRUIT_MODE_DATA);
+      // TODO: give visible signal
     }
 
 
@@ -254,8 +255,43 @@ void showFps() {
 typedef void (*Modes[])();
 
 // all the main modes we support
-Modes modes =         {ambientAllRainbow, ambientRedCycle, ringAudio,simpleAudio, twoRingAudio,colorWheel,fastColorWheel,colorWheelPulsing,colorWheelUpDown,segmentTurning,randomBluePixelsOnSphere, rainbowSparks,randomSparks,sparks, sparksAndRainbow, threeSnakes};
-Modes setupForModes = {ambientAllRainbowSetup, ambientRedCycleSetup, ringAudioSetup, none,twoRingAudioSetup, none,none,none,colorWheelUpDownSetup, segmentTurningSetup,none, rainbowSparksSetup, randomSparksSetup,sparksSetup,sparksAndRainbowSetup, threeSnakesSetup };
+Modes modes =         {
+  ambientAllRainbow,
+  ambientRedCycle,
+  ringAudio,
+  simpleAudio,
+  twoRingAudio,
+  colorWheel,
+  fastColorWheel,
+  colorWheelPulsing,
+  colorWheelUpDown,
+  segmentTurning,
+  randomBluePixelsOnSphere,
+  rainbowSparks,
+  randomSparks,
+  sparks,
+  sparksAndRainbow,
+  threeSnakes
+};
+
+Modes setupForModes = {
+  ambientAllRainbowSetup,
+  ambientRedCycleSetup,
+  ringAudioSetup,
+  none,
+  twoRingAudioSetup,
+  none,
+  none,
+  none,
+  colorWheelUpDownSetup,
+  segmentTurningSetup,
+  none,
+  rainbowSparksSetup,
+  randomSparksSetup,
+  sparksSetup,
+  sparksAndRainbowSetup,
+  threeSnakesSetup 
+};
 
 
 // we have some modes how we use the audio data to modulate the colors
@@ -269,7 +305,13 @@ uint8_t sdIdx = 1;
 #define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 void nextMode(uint8_t dir) {
-  currentMode = (currentMode + dir) % ARRAY_SIZE(modes);
+  uint8_t  newMode;
+  newMode = (currentMode + dir) % ARRAY_SIZE(modes);
+  setMode(newMode);
+}
+
+void setMode(uint8_t mode){
+  currentMode = mode;
   if(currentMode < 0)
     currentMode = ARRAY_SIZE(modes) - 1;
   FastLED.setBrightness(32);
@@ -902,11 +944,29 @@ void readBT() {
     uint8_t buttnum = packetbuffer[2] - '0';
     boolean pressed = packetbuffer[3] - '0';
 
-    if(buttnum == 6 && !pressed) {
-      nextMode(-1);
-    }
-    if(buttnum == 5 && !pressed) {
-      nextMode(1);
+    // button released
+    if(!pressed){
+      // UP & DOWN arrows
+      if(buttnum == 6) {
+        nextMode(-1);
+      }
+      if(buttnum == 5) {
+        nextMode(1);
+      }
+
+      // direct modes:
+      if(buttnum == 1) {
+        setMode(0);
+      }
+      if(buttnum == 2) {
+        setMode(4);
+      }
+      if(buttnum == 3) {
+        setMode(10);
+      }
+      if(buttnum == 4) {
+        setMode(15);
+      }
     }
     // Serial.print ("Button "); Serial.print(buttnum);
   }
