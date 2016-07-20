@@ -275,7 +275,8 @@ Modes modes =         {
   randomSparks,
   sparks,
   sparksAndRainbow,
-  threeSnakes
+  threeSnakes,
+  fire
 };
 
 Modes setupForModes = {
@@ -294,7 +295,8 @@ Modes setupForModes = {
   randomSparksSetup,
   sparksSetup,
   sparksAndRainbowSetup,
-  threeSnakesSetup 
+  threeSnakesSetup,
+  fireSetup
 };
 
 
@@ -624,6 +626,12 @@ void simpleAudio() {
     hue++;
     height = TOP * (lvl - minLvlAvg) / (long)(maxLvlAvg - minLvlAvg);
 
+    Serial.print(lvl);
+    Serial.print(" ");
+    Serial.print(minLvlAvg);
+    Serial.print(" ");
+    Serial.println(maxLvlAvg);
+
     if(height < 0L)       height = 0;      // Clip output
     else if(height > TOP) height = TOP;
     // if(height > peak)     peak   = height; // Keep 'peak' dot at top
@@ -783,6 +791,59 @@ void threeSnakes() {
 
 void threeSnakesSetup() {
     currentDelay = 100;
+}
+
+CRGBPalette16 firePal;
+
+void fireSetup() {
+  currentDelay = 60;
+  firePal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::Grey);
+}
+
+#define COOLING  75
+#define SPARKING 100
+#define Y 30
+#define X 13
+
+
+void fire() {
+  static byte heat[NUM_LEDS];
+  random16_add_entropy(random());
+  // cool down
+  for (int x = 0; x < X; x++) {
+      for( int y = 0; y < Y; y++) {
+        heat[y+x*Y] = qsub8( heat[y+x*Y],  random8(0, ((COOLING * 10) / Y) + 2));
+      }
+  }
+  // drift up and difuse
+  for (int x = 0; x < X; x++) {
+    for( int k= Y - 1; k >= 2; k--) {
+      int kk = k;
+      int dir = 1;
+      if(x % 2 != 0) {
+        kk = 29 - k;
+        dir = -1;
+      }
+      heat[(kk+x*Y)] = (heat[(kk+x*Y) - dir] + heat[(kk+x*Y) - (2*dir)] + heat[(kk+x*Y) - (2*dir)] ) / 3;
+    }
+  }
+  // ignite
+  for(int i = 0; i < X; i++) {
+    if( random8() < SPARKING ) {
+      int y = random8(7);
+      int x = i;
+      int yy = y;
+      if(x % 2 != 0)
+        yy = 29 - y;
+      heat[yy+x*30] = qadd8( heat[yy+x*30], random8(100,180) );
+    }
+  }
+  // map to pixels
+  for( int j = 0; j < NUM_LEDS; j++) {
+    byte colorindex = scale8( heat[j], 240);
+    CRGB color = ColorFromPalette( firePal, colorindex);
+    leds[j] = color;
+  }
 }
 
 
