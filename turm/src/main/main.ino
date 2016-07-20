@@ -214,6 +214,7 @@ uint8_t usePotentiometer = 1;
 
 // the current active main mode
 int8_t currentMode = 0;
+int8_t previousMode = 0;
 uint8_t currentBrightness = MAX_BRIGHTNESS;
 
 
@@ -275,7 +276,8 @@ Modes modes =         {
   randomSparks,
   sparks,
   sparksAndRainbow,
-  threeSnakes
+  threeSnakes,
+  lightning
 };
 
 Modes setupForModes = {
@@ -294,7 +296,8 @@ Modes setupForModes = {
   randomSparksSetup,
   sparksSetup,
   sparksAndRainbowSetup,
-  threeSnakesSetup 
+  threeSnakesSetup,
+  lightningSetup
 };
 
 
@@ -315,6 +318,7 @@ void nextMode(uint8_t dir) {
 }
 
 void setMode(uint8_t mode){
+  previousMode = currentMode;
   currentMode = mode;
   if(currentMode < 0)
     currentMode = ARRAY_SIZE(modes) - 1;
@@ -614,7 +618,6 @@ void ambientSparklingSetup() {
 }
 
 
-
 #define TOP 30
 
 void simpleAudio() {
@@ -811,11 +814,6 @@ void ringAudio() {
 
     EVERY_N_MILLISECONDS(200) { if(peak >  0) peak--; }
 
-
-
-    //
-    // CRGB::BlueViolet
-
     uint8_t jj = 0;
     for(int i = 0; i < 12; i ++) {
 
@@ -936,6 +934,61 @@ void accelSetup() {
 
 }
 
+
+
+
+// lighning from top where the last flash ignites the whole sphere
+uint8_t flashes = 8;
+
+void lightning(){
+  for (int flash = 0; flash < flashes; flash++) {
+    uint8_t brightness = 128;     // the brightness of the leader is scaled down by a factor of 5
+    uint8_t length = random8(1,60);
+    uint8_t duration = 8;
+
+    // last partial flash fills 
+    if (flash == 0){
+    }else if (flash == flashes -3) {
+      length = 60;
+      brightness = 255;
+      duration = 10;
+    } else if (flash >= flashes-3){
+      // last two flashes:
+      duration = 20;
+      length = 120;
+      brightness = 255;
+    }
+    lightningOfLength(length, brightness);
+
+    delay(duration);                 // each flash only lasts 4-10 milliseconds
+
+    lightningOfLength(length, 0);
+
+    if (flash == 0) delay (150);   // longer delay until next flash after the leader
+    delay(50+random8(50));               // shorter delay between strokes
+  }
+  delay(500);               // shorter delay between strokes
+  setMode(previousMode);
+}
+
+void lightningSetup(){
+}
+
+void lightningOfLength(uint8_t length, uint8_t brightness) {
+  if (length <= 60){
+    // fill part of the top
+    for (int i =1; i < length; i++){
+      leds[NUM_LEDS - i] = CHSV(255, 0, brightness);
+    }
+  }else{
+    // fill every pixel
+    for(int i = 0; i < NUM_LEDS; i ++) {
+            leds[i] = CHSV(255, 0, brightness);
+    }
+  }
+  FastLED.show();                       // Show a section of LED's
+}
+
 void checkSerial() {
     if(Serial.available() > 0) {
         Serial.read();
@@ -987,7 +1040,7 @@ void readBT() {
         setMode(10);
       }
       if(buttnum == 4) {
-        setMode(15);
+        setMode(16);
       }
     }
     // Serial.print ("Button "); Serial.print(buttnum);
