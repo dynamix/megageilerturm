@@ -9,6 +9,9 @@
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "Adafruit_BluefruitLE_UART.h"
 
+// sensor
+#include <Adafruit_Sensor.h>
+#include <Adafruit_LSM9DS0.h>
 
 
 // what we want to do here (pretty sure not everything will get done in time - only 1-2 would be totally ok :-)
@@ -126,22 +129,18 @@
 #define MAX_BRIGHTNESS 32
 #define MIN_BRIGHTNESS 8
 
-CRGB leds[NUM_LEDS];
-
-uint16_t currentDelay = 0;
-
 Adafruit_BluefruitLE_UART ble(Serial1, -1);
+Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0(1000);
 
+
+CRGB leds[NUM_LEDS];
+uint16_t currentDelay = 0;
 uint8_t button = 0;
-
-
 
 uint16_t bytesInStrip = NUM_LEDS * 3;
 uint16_t sphereBytes = NUM_SPHERE_LEDS * 3;
 
 File file;
-
-
 
 void error(const char* s) {
   Serial.println(s);
@@ -163,20 +162,23 @@ uint8_t blueOk = 0;
 
 void setup() {
 
+  lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
+  lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GAUSS);
+  lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
+
 	FastLED.addLeds<WS2811_PORTD,8>(leds, NUM_LEDS_PER_STRIP);
-    //.setCorrection(TypicalLEDStrip);
-    FastLED.setBrightness(MAX_BRIGHTNESS);
-    FastLED.clear();
-    FastLED.show();
-    delay(3000); // if we fucked it up - great idea by fastled :D
+  //.setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(MAX_BRIGHTNESS);
+  FastLED.clear();
+  FastLED.show();
+  delay(3000); // if we fucked it up - great idea by fastled :D
 
-    // init bluetooth
-    if ( ble.begin(true) )    {
-      ble.sendCommandCheckOK("AT+GAPDEVNAME=megageilerturm");
-      ble.setMode(BLUEFRUIT_MODE_DATA);
-      // TODO: give visible signal
-    }
-
+  // init bluetooth
+  if ( ble.begin(true) )    {
+    ble.sendCommandCheckOK("AT+GAPDEVNAME=megageilerturm");
+    ble.setMode(BLUEFRUIT_MODE_DATA);
+    // TODO: give visible signal
+  }
 
 	pinMode(BUTTON_PIN, INPUT_PULLUP);
 
@@ -206,7 +208,7 @@ void setup() {
     // FastLED.show();
 
 
-    FastLED.setMaxPowerInVoltsAndMilliamps(5, 2000);
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2000);
 
 }
 
