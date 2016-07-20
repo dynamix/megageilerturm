@@ -942,7 +942,7 @@ uint8_t flashes = 8;
 
 void lightning(){
   for (int flash = 0; flash < flashes; flash++) {
-    uint8_t brightness = 128;     // the brightness of the leader is scaled down by a factor of 5
+    uint8_t brightness = 255;     // the brightness of the leader is scaled down by a factor of 5
     uint8_t length = random8(1,60);
     uint8_t duration = 8;
 
