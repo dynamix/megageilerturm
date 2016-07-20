@@ -2,21 +2,20 @@ import opc
 import time
 import socket
 
+# forwards a Glediator recorded file to the simulator
+
 def pix(b,i):
     # translate zigzag
     x = int(i / 30)
     if x % 2 == 0:
-        y = i % 30
-        x = int(x / 2)
-    else:
         y = 29 - (i%30)
-        x = int(x/2) + 6
+    else:
+        y = i % 30
     i = y*12+x
     o = i * 3
     return [ ord(b[o]) , ord(b[o+1]), ord(b[o+2]) ]
 
 f = open("/Users/martin/Downloads/test.rec", "rb")
-
 
 
 ADDRESS = 'localhost:7890'

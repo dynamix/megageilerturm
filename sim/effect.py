@@ -4,12 +4,19 @@ import math
 import socket
 import random
 from colour import Color
+import math
+
+# we need one switch effect - maybe fade out fade in? :D
 
 #  generic:
-#  - one runing pixel around the global with a trail .. followed by a 3x3 pixel catching up
+#  - one runing pixel around the global with a trail .. followed by a 3x3 pixel catching up - DONE
+#  - two 3 or more pixels lines running in th oposit direction
+#  -- if they intersect each other, blend the colors!
+#  -- change speed over time?!
+#  -- make pixels with different speeds
 #  - falling rain from the top -> into a pond of water + fading
 #  - random sparkling pixels
-#  - exploding pixel like rockets :D
+#  - exploding pixel like rockets :D -> requires a particle system -> we can do that on the teensy
 #  - lines runing around the circle .. maybe in oposit directions?!
 #  - color wheels + rainbows
 #  - knight riders
@@ -39,11 +46,9 @@ from colour import Color
 def idx(x,y):
     x = int(x) % 12
     y = int(y) % 30
-    # if x >= 6:
-    #     x = (x - 6)*2
-    #     y = 59 - y
-    # else:
-    #     x = x * 2
+    if x % 2 != 0:
+        y = 29 - y
+
     return x*30+y
 
 def round(x):
@@ -148,6 +153,255 @@ def spherical_distance(x1,y1, x2,y2):
     return 2.0 * math.asin(sqrt)
 
 
+dx = random.random()
+dy = random.random()
+x = 0
+y = 0
+
+
+def sgn(f):
+  if f > 0: return 1
+  if f < 0: return -1
+  return 0
+
+
+
+def normal2d(v):
+    return (-v[1],v[0])
+
+def r2d(a):
+    return a * (180/math.pi)
+
+def d2r(a):
+    return a / (180/math.pi)
+
+def m(t,c,r,u,v):
+    print t,r2d(t), math.cos(t),math.sin(t),c
+    x = c[0] + (r * math.cos(t)) * u[0] + (r * math.sin(t)) *v[0]
+    y = c[1] + (r * math.cos(t)) * u[1] + (r * math.sin(t)) *v[1]
+    z = c[2] + (r * math.cos(t)) * u[2] + (r * math.sin(t)) *v[2]
+    return [x,y,z]
+
+def cross(a,b):
+    x=a[1]*b[2]-a[2]*b[1]
+    y=a[2]*b[0]-a[0]*b[2]
+    z=a[0]*b[1]-a[1]*b[0]
+    return (x,y,z)
+
+def unit(v):
+    l = math.sqrt(v[0]**2 + v[1]**2 + v[2]**2)
+    return [ v[0] / l, v[1] / l, v[2] / l]
+
+def plane(v,x,y,z,d):
+    return v[0] * x + v[1] * y + v[2] * z - d
+
+def onSphere(v,r):
+    if r == 0:
+        print "NOO",r
+    #print "v", v,"r",r
+    #print "theta",v[2]/r
+    #print "phi",v[1]/v[0]
+    theta = math.acos(v[2]/r)
+    if v[0] == 0:
+        phi = 0
+    else:
+        phi = math.atan(v[1]/v[0])
+
+    return ( r2d(theta), r2d(phi) )
+    #return ( theta, phi )
+
+def spherical2(t, pixels):
+
+    ledsPerStrip = 60
+    strips = 6
+    totalLeds = ledsPerStrip * strips
+    sampleNum = 12
+
+    o = t%30/10.0
+
+    # just going from bottom to top -> speed is our normal vector too
+    n = (0,1,0)
+    p0 = (0,-1+n[1]*o,0)
+
+    # c0 center of our sphere is (0,0,0)
+    R = 1
+
+    D = n[0] * p0[0] + n[1] * p0[1] + n[2] * p0[2]
+
+    # p = (c0 - p0*n) / |n|
+    length_n = math.sqrt(n[0]*n[0] +  n[1]*n[1] + n[2]*n[2])
+    #print n[0] * p0[0], n[1] * p0[1],n[2] * p0[2],D
+    p = (n[0] * p0[0] + n[1] * p0[1] + n[2] * p0[2]) / length_n
+    # p = (n[0] * p0[0] + n[1] * p0[1] + n[2] * p0[2] - D) / length_n
+
+    if p < -1 or p > 1:
+        print "no intersect",p
+        return
+
+    #print "intersect", p
+
+    # radius of our intersecting circle
+    r = math.sqrt(R*R - p*p)
+    #print p,r
+
+    # center pointer of our intersecting circle
+    c = ( p * n[0]/length_n, p * n[1]/length_n, p * n[2]/length_n )
+    #print c
+
+
+
+    # get one point
+    # set y,z = 0
+    # Cz  = D
+    j = [0,0,0]
+
+    if n[0] == 0:
+        j[0] = D
+    else:
+        j[0] = D/n[0]
+
+    # get y, set z = 0
+    if n[1] == 0:
+        j[1] = D
+    else:
+        j[1] = (D - n[0] * j[0]) / n[1]
+
+    # get z
+    if n[2] == 0:
+        j[2] = D
+    else:
+        j[2] = D - ((n[0] * j[0] + n[1] * j[1])) / n[2]
+
+
+    u = (j[0]-c[0],j[1]-c[1],j[2]-c[2])
+    v = cross(u,n)
+
+    # print c,unit(u),unit(v)
+
+    m0 = m(0,c,r,unit(u),unit(v))
+
+    # we want to sample for six degrees as this is the highest resulution we get
+    # d = r * (180/math.pi)
+    t = d2r(360/sampleNum)
+
+    samples = [ m(i*t,c,r,unit(u),unit(v)) for i in range(sampleNum)]
+    #print samples[0]
+
+    #print onSphere(m0,r)
+
+    # convert to spherical coordinates
+    spherical_coords = [onSphere(v,r) for v in samples]
+
+
+    #print samples[1],samples[30]
+    p#rint spherical_coords[0], samples[0]
+
+
+    # convert to LED
+    # for i in range(60):
+    #     lc = spherical_coords[i]
+    #     x = int(lc[0] / 30)
+    #     y = int( (90-lc[1]) / 6)
+    #     if samples[i][1] > 0:
+    #         a = 180 - lc[0]
+    #         x = int(a / 30)
+    #         y = 15 + int( (lc[1]) / 6)
+    #     pixels[idx(x,y)] = [255,0,0]
+
+
+    #for co in [0,1,2,3,4]:
+    for co in range(sampleNum):
+
+        #print  spherical_coords
+        lc = spherical_coords[co]
+
+        x = int(lc[0] / 30)
+        #x = 1
+        y = int( (90-lc[1]) / 6)
+        #if samples[co][0] > 0:
+        #    y = 29 - y
+        if samples[co][1] > 0:
+            a = 180 - lc[0]
+            x = int(a / 30)
+            y = 15 + int( (lc[1]) / 6)
+
+        print co, lc, "leds->",x,y,samples[co]
+        pixels[idx(x,y)] = [255,0,0]
+
+
+
+def spherical(t, pixels):
+    # for now 2d
+    o = t%40/10.0
+    v = (1,-1) # 45degree velocity
+    p0 = (-1+v[0]*o,1+v[1]*o)
+
+    nv = normal2d(v)
+    # x2 = point
+    # x1 = vel
+    m = nv[0]/nv[1];
+    c = p0[1]-m*p0[0];
+
+
+    x1 = -1
+    x2 = 1
+    y1 = m * x1 + c
+    y2 = m * x2 + c
+
+
+    dx = x2 - x1
+    dy = y2 - y1
+
+    dr = math.sqrt(dx*dx+dy*dy)
+    dr_2 = dx*dx+dy*dy
+    D = x1 * y2 - x2 * y1
+    intersect = (dx*dx+dy*dy)-(D*D)
+
+    for i in range(30):
+        pixels[idx(0,i)] = [0,0,255]
+        pixels[idx(6,i)] = [0,0,200]
+
+
+    if intersect < 0:
+        print "no intersect", intersect
+        return
+
+    di = math.sqrt(dr_2 - D*D)
+    ix1 = (D * dy + dx*sgn(dy) * di) / dr_2
+    ix2 = (D * dy - dx*sgn(dy) * di) / dr_2
+
+    iy1 = (-D * dx + math.fabs(dy) * di) / dr_2
+    iy2 = (-D * dx - math.fabs(dy) * di) / dr_2
+
+
+
+    # degrees = 90 - (math.asin(iy1/math.sqrt(ix1**2+iy1**2)) * (180/math.pi))
+    d1 = math.asin(iy1) * (180/math.pi)
+    degrees = d1 + 90
+    led = int(degrees / 6.0)
+    ledx = 0
+    if ix1 > 0:
+        ledx = ledx + 6
+    pixels[idx(ledx, led)] = [255,0,0]
+
+    #degrees2 =  90 + (math.asin(iy2/math.sqrt(ix2**2+iy2**2)) * (180/math.pi))
+    d2 = math.asin(iy2) * (180/math.pi)
+    degrees2 =  d2 + 90
+    led2x = 0
+    if ix2 > 0:
+        led2x = led2x + 6
+
+    led2 = int(degrees2 / 6.0)
+
+    print degrees,"(",d1,")","->",led," ",degrees2,"(",d2,")","->",led2
+
+    pixels[idx(led2x, led2)] = [0,255,0]
+
+
+    #print ix1,iy1,ix2,iy2
+
+
+
 #  - one runing pixel around - followed by a 3x3 pixel catching up
 def m1(t,pixels):
     global dx
@@ -209,8 +463,6 @@ def simple_horizontal_runner(t,pixels):
     # get runner position
     p = xt % 360
 
-    pixels = [ [0,0,0] for i in range(360)]
-
     pixels[p] = [255,0,0]
     pixels[(p-1)%360] = [180,0,0]
     pixels[(p-2)%360] = [80,0,0]
@@ -235,7 +487,7 @@ def simplest_one_pixel_vertical_runner_with_globals(t,pixels):
     global gx
     global gy
     # on the real device we will have a ms timer
-    gx = gx + 1
+    gx = gx + 0.1
     if gx >= 12:
         gx = 0
         gy += 1
@@ -272,7 +524,7 @@ start_time = time.time()
 while True:
     t = time.time() - start_time
     pixels = [ [0,0,0] for i in range(360)]
-    projected_circle(t,pixels)
+    spherical2(t,pixels)
     if client.put_pixels(pixels, channel=0):
         pass
     else:
