@@ -1,5 +1,6 @@
 import opc
 import time
+import math
 import socket
 import random
 from colour import Color
@@ -26,6 +27,7 @@ from colour import Color
 #  - rainbow with gliter
 #  - confetti
 # - super slow clor wheeled pulse
+# - alternating segments of 2x2 + 4x2 edges
 
 # - with motion:
 # - glow the sphere in tat the point where the acceleration vector hits the sphere
@@ -37,13 +39,12 @@ from colour import Color
 def idx(x,y):
     x = int(x) % 12
     y = int(y) % 30
-    if x >= 6:
-        x = (x - 6)*2
-        y = 59 - y
-    else:
-        x = x * 2
+    # if x >= 6:
+    #     x = (x - 6)*2
+    #     y = 59 - y
+    # else:
+    #     x = x * 2
     return x*30+y
-
 
 def round(x):
     return int(x+0.5)
@@ -83,6 +84,68 @@ def m3(t, pixels):
             l = min(max((pulse-shift),0),1)
             pixels[idx(x,y)] = [f * 255 for f in Color(hue=t/100.0 , saturation=1, luminance=l).rgb]
 
+# a segment is formed of:
+# X + + -
+# + @ @ +
+# + @ @ +
+# - + + -
+
+# X -> start, off
+# @ -> full brightness
+# + -> reduced brightness
+# - -> off
+def segments(t,pixels):
+    # segment start (top left corner)
+    bright = [255,0,0]
+    dark = [50,0,0]
+    sx = random.randint(0,12)
+    sy = random.randint(0,26) # we need one space to the top and two to the bottom
+    # row 0
+    pixels[idx(sx+1, sy)] = dark
+    pixels[idx(sx+2, sy)] = dark
+
+    # row 1
+    pixels[idx(sx,   sy+1)] = dark
+    pixels[idx(sx+1, sy+1)] = bright
+    pixels[idx(sx+2, sy+1)] = bright
+    pixels[idx(sx+3, sy+1)] = dark
+
+    # row 2
+    pixels[idx(sx,   sy+2)] = dark
+    pixels[idx(sx+1, sy+2)] = bright
+    pixels[idx(sx+2, sy+2)] = bright
+    pixels[idx(sx+3, sy+2)] = dark
+   
+    # row 3
+    pixels[idx(sx+1, sy+3)] = dark
+    pixels[idx(sx+2, sy+3)] = dark
+
+def projected_circle(t,pixels):
+    sx = random.randint(0,12)
+    sy = random.randint(0,26) # we need one space to the top and two to the bottom
+
+    bright = [255,0,0]
+    radius = 0.1
+
+    for x in range(0,12):
+        for y in range(0,30):
+            if spherical_distance(sx,sy, x,y) < radius:
+                pixels[idx(x,y)] = bright
+
+def spheric(x,y):
+    theta = (x % 12) * math.pi * 2.0
+    phi = (15-y % 30)* math.pi / 2.0
+    return (theta, phi)
+
+# https://en.wikipedia.org/wiki/Great-circle_distance
+def spherical_distance(x1,y1, x2,y2):
+    t1,p1 = spheric(x1,y1)
+    t2,p2 = spheric(x2,y2)
+    arg = math.sin((p2-p1/2.0))**2 + math.cos(p1) * math.cos(p2) * math.sin((t2-t1)/2.0)**2
+    if arg < 0: 
+        arg = -1 * arg
+    sqrt = math.sqrt(arg)
+    return 2.0 * math.asin(sqrt)
 
 
 #  - one runing pixel around - followed by a 3x3 pixel catching up
@@ -209,10 +272,10 @@ start_time = time.time()
 while True:
     t = time.time() - start_time
     pixels = [ [0,0,0] for i in range(360)]
-    m3(t,pixels)
+    projected_circle(t,pixels)
     if client.put_pixels(pixels, channel=0):
         pass
     else:
         print 'not connected'
-    time.sleep(1/30.0)
+    time.sleep(1/1.0)
 
