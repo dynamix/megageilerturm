@@ -999,13 +999,13 @@ void accelSetup() {
 
 
 // lighning from top where the last flash ignites the whole sphere
-uint8_t flashes = 8;
+uint8_t flashes = 10;
 
 void lightning(){
   for (int flash = 0; flash < flashes; flash++) {
     uint8_t brightness = 255;     // the brightness of the leader is scaled down by a factor of 5
     uint8_t length = random8(1,60);
-    uint8_t duration = 8;
+    uint8_t duration = 5;
 
     // last partial flash fills 
     if (flash == 0){
