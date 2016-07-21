@@ -73,6 +73,9 @@
 // -- longer segments - on / off and moving
 // -- all pixels at full - turning random pixels off
 
+// NEW: - pixel spiral - create a pixel on top and move it down while rotating - create a line
+//      - running pixel stars with a trailer - fade out and get recreated (different speeds) - BONUS crash into an explosion
+
 
 // IDEAs : https://vimeo.com/145339817
 
@@ -136,6 +139,8 @@ Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0(1000);
 CRGB leds[NUM_LEDS];
 uint16_t currentDelay = 0;
 uint8_t button = 0;
+uint8_t shouldClear = 1;
+
 
 uint16_t bytesInStrip = NUM_LEDS * 3;
 uint16_t sphereBytes = NUM_SPHERE_LEDS * 3;
@@ -158,59 +163,12 @@ void clear() {
     memset(leds,0,sizeof(leds));
 }
 
+void clearn(uint16_t n) {
+    memset(leds,0,n*3);
+}
+
 uint8_t blueOk = 0;
 
-void setup() {
-
-  lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
-  lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GAUSS);
-  lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
-
-	FastLED.addLeds<WS2811_PORTD,8>(leds, NUM_LEDS_PER_STRIP);
-  //.setCorrection(TypicalLEDStrip);
-  FastLED.setBrightness(MAX_BRIGHTNESS);
-  FastLED.clear();
-  FastLED.show();
-  delay(3000); // if we fucked it up - great idea by fastled :D
-
-  // init bluetooth
-  if ( ble.begin(true) )    {
-    ble.sendCommandCheckOK("AT+GAPDEVNAME=megageilerturm");
-    ble.setMode(BLUEFRUIT_MODE_DATA);
-    // TODO: give visible signal
-  }
-
-	pinMode(BUTTON_PIN, INPUT_PULLUP);
-
-//  	if (!SD.begin(SD_CS_PIN)) {
-  //  	error("sd failed at begin");
- // 	}
-
-  	// // open or create file - truncate existing file.
-  //	file = SD.open("4.rec");
- // 	if (!file) {
- //   	error("open failed");//
-  //	}
-
-    // Serial.begin(BAUD_RATE);
-    // while (!Serial.available()) {
-    //    yield();
-    // }
-
-    // always celar the strip and set one test pixel to active
-
-    // char b = Serial.read();
-    // Serial.print("setup done, got");
-    // Serial.println(b);
-
-    // FastLED.clear();
-    // leds[ 20 ] += CRGB::Red;
-    // FastLED.show();
-
-
-  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2000);
-
-}
 
 uint8_t usePotentiometer = 1;
 
@@ -263,6 +221,9 @@ typedef void (*Modes[])();
 
 // all the main modes we support
 Modes modes =         {
+  spiral,
+  gyro,
+  simpleSensor, // move down later
   ambientAllRainbow,
   ambientRedCycle,
   ringAudio,
@@ -284,6 +245,9 @@ Modes modes =         {
 };
 
 Modes setupForModes = {
+  spiralSetup,
+  gyroSetup,
+  simpleSensorSetup,
   ambientAllRainbowSetup,
   ambientRedCycleSetup,
   ringAudioSetup,
@@ -303,6 +267,63 @@ Modes setupForModes = {
   lightningSetup,
   fireSetup
 };
+
+
+void setup() {
+
+  FastLED.addLeds<WS2811_PORTD,8>(leds, NUM_LEDS_PER_STRIP);
+  //.setCorrection(TypicalLEDStrip);
+  FastLED.setBrightness(MAX_BRIGHTNESS);
+  FastLED.clear();
+  FastLED.show();
+  delay(3000); // if we fucked it up - great idea by fastled :D
+
+  // init bluetooth
+  if ( ble.begin(true) )    {
+    ble.sendCommandCheckOK("AT+GAPDEVNAME=megageilerturm");
+    ble.setMode(BLUEFRUIT_MODE_DATA);
+    // TODO: give visible signal
+  }
+
+  if(lsm.begin()) {
+    lsm.setupAccel(lsm.LSM9DS0_ACCELRANGE_2G);
+    lsm.setupMag(lsm.LSM9DS0_MAGGAIN_2GAUSS);
+    lsm.setupGyro(lsm.LSM9DS0_GYROSCALE_245DPS);
+  }
+
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+//    if (!SD.begin(SD_CS_PIN)) {
+  //    error("sd failed at begin");
+ //   }
+
+    // // open or create file - truncate existing file.
+  //  file = SD.open("4.rec");
+ //   if (!file) {
+ //     error("open failed");//
+  //  }
+
+    // Serial.begin(BAUD_RATE);
+    // while (!Serial.available()) {
+    //    yield();
+    // }
+
+    // always celar the strip and set one test pixel to active
+
+    // char b = Serial.read();
+    // Serial.print("setup done, got");
+    // Serial.println(b);
+
+    // FastLED.clear();
+    // leds[ 20 ] += CRGB::Red;
+    // FastLED.show();
+
+
+  FastLED.setMaxPowerInVoltsAndMilliamps(5, 2000);
+
+  setupForModes[0]();
+
+}
 
 
 // we have some modes how we use the audio data to modulate the colors
@@ -329,6 +350,7 @@ void setMode(uint8_t mode){
   setBrightness(MAX_BRIGHTNESS);
   usePotentiometer = 1;
   currentDelay = 0;
+  shouldClear = 1;
   setupForModes[currentMode]();
 }
 
@@ -753,6 +775,14 @@ uint16_t xy60x6(uint8_t x, uint8_t y) {
     return (x * 30) + y;
 }
 
+uint16_t xy(uint8_t x, uint8_t y) {
+  if(x%2 !=0)
+    return x*30 + y;
+  else
+    return x*30 + (29-y);
+}
+
+
 void threeSnakes() {
     static uint8_t snake1 = 0;
     static uint8_t snake2 = 20;
@@ -989,12 +1019,104 @@ void segmentTurningSetup() {
     currentDelay = 150;
 }
 
-void accel() {
+
+
+void simpleSensor() {
+  clearn(360); // not the top
+  sensors_event_t accel, mag, gyro, temp;
+  lsm.getEvent(&accel, &mag, &gyro, &temp);
+
+  static uint8_t hue = 0;
+  // static int8_t segment = 0;
+  // static int8_t segment2 = 6;
+  hue++;
+
+  // accel.acceleration.x
+  // if we accel away from earth glow top .. otherwise glow middle
+  // two rings at default 14 & 16 colorwheeled
+
+  float mv = accel.acceleration.x + accel.acceleration.y + accel.acceleration.z -  9.81;
+  mv = mv / 1.5;
+
+  for(int x=0; x <12;x++) {
+    leds[xy(x,14+mv)] = CHSV((16*x/2) + hue  ,250,154);
+    leds[xy(x,16+mv)] = CHSV((16*x/2) - hue  ,250,154);
+  }
+  for(int y=0; y <50;y++) {
+    leds[360+7+y].fadeToBlackBy( 64 );
+  }
+  if(mv<-8) {
+    for(int y=0; y <50;y++) {
+      leds[360+7+y] += CHSV((16*y/2) + hue  ,120,254);
+    }
+  }
+  // fade off the top every frame
 
 }
 
-void accelSetup() {
+void simpleSensorSetup() {
+  currentDelay = 50;
+  shouldClear = 0;
+}
 
+
+void gyro() {
+  static float x = 0;
+  static float speed = 0.01;
+  static uint8_t hue = 0;
+  hue++;
+
+  for(int y=0; y <30;y++) {
+    leds[xy(int(x),y)] = CHSV((16*y/2) + hue  ,250,154);
+  }
+
+  sensors_event_t accel, mag, gyro, temp;
+  lsm.getEvent(&accel, &mag, &gyro, &temp);
+
+  //Serial.println(gyro.gyro.x);
+
+  if(abs(gyro.gyro.x/1000.0)>0.01)
+    speed += gyro.gyro.x/1000.0;
+
+  if(speed>0.01)
+    speed -= 0.005;
+  if(speed<-0.01)
+    speed += 0.005;
+
+  x += speed;
+  if(x >= 11)
+    x = 0;
+
+}
+
+void gyroSetup() {
+  currentDelay = 10;
+}
+
+
+void spiral() {
+  static uint8_t emitX = 0;
+  emitX++;
+  if(emitX>11)
+    emitX=0;
+
+  // emit a new pixel
+  leds[xy(emitX,0)] = CRGB::Grey;
+
+  // translate all old pixels one down
+  for(int x=0; x <12;x++) {
+    for(int y=29; y >=1;y--) {
+      leds[xy(x,y)] = leds[xy(x,y-1)];
+      leds[xy(x,y-1)] = 0;
+    }
+
+  }
+
+}
+
+void spiralSetup() {
+  currentDelay = 50;
+  shouldClear = false;
 }
 
 
@@ -1203,7 +1325,8 @@ void loop() {
     // // }
 
     // //hue++;
-    clear();
+    if(shouldClear)
+      clear();
     modes[currentMode]();
     FastLED.show();
 
