@@ -221,11 +221,15 @@ typedef void (*Modes[])();
 
 // all the main modes we support
 Modes modes =         {
-  spiral,
-  gyro,
-  simpleSensor, // move down later
+  testMode,
+  // stars,
+  //spiral,
   ambientAllRainbow,
   ambientRedCycle,
+  gyro,
+  fire,
+  fireSensor,
+  simpleSensor, // move down later
   ringAudio,
   simpleAudio,
   twoRingAudio,
@@ -240,16 +244,20 @@ Modes modes =         {
   sparks,
   sparksAndRainbow,
   threeSnakes,
-  lightning,
-  fire
+  lightning
+
 };
 
 Modes setupForModes = {
-  spiralSetup,
-  gyroSetup,
-  simpleSensorSetup,
+  none,
+  // starsSetup,
+  //spiralSetup,
   ambientAllRainbowSetup,
   ambientRedCycleSetup,
+  gyroSetup,
+  fireSetup,
+  fireSensorSetup,
+  simpleSensorSetup,
   ringAudioSetup,
   none,
   twoRingAudioSetup,
@@ -264,8 +272,8 @@ Modes setupForModes = {
   sparksSetup,
   sparksAndRainbowSetup,
   threeSnakesSetup,
-  lightningSetup,
-  fireSetup
+  lightningSetup
+
 };
 
 
@@ -494,6 +502,15 @@ void colorWheelUpDown() {
         }
     }
 }
+
+void testMode() {
+    for(int i = 0; i < NUM_STRIPS; i++) {
+        for(int j = 0; j <= i; j++) {
+            leds[(i*NUM_LEDS_PER_STRIP) + j] = CRGB::Red;
+        }
+    }
+}
+
 
 void fastColorWheel() {
     static uint8_t hue = 0;
@@ -777,9 +794,9 @@ uint16_t xy60x6(uint8_t x, uint8_t y) {
 
 uint16_t xy(uint8_t x, uint8_t y) {
   if(x%2 !=0)
-    return x*30 + y;
+    return (x%12)*30 + (y%30);
   else
-    return x*30 + (29-y);
+    return (x%12)*30 + (29-(y%30));
 }
 
 
@@ -865,6 +882,84 @@ void fire() {
   // ignite
   for(int i = 0; i < X; i++) {
     if( random8() < SPARKING ) {
+      int y = random8(7);
+      int x = i;
+      int yy = y;
+      if(x % 2 != 0)
+        yy = 29 - y;
+      heat[yy+x*30] = qadd8( heat[yy+x*30], random8(100,180) );
+    }
+  }
+  // map to pixels
+  for( int j = 0; j < NUM_LEDS; j++) {
+    byte colorindex = scale8( heat[j], 240);
+    CRGB color = ColorFromPalette( firePal, colorindex);
+    leds[j] = color;
+  }
+}
+
+void fireSensorSetup() {
+  currentDelay = 50;
+  firePal = CRGBPalette16( CRGB::Black, CRGB::Red, CRGB::Yellow, CRGB::Grey);
+}
+
+#define SENSOR_COOLING  115
+#define SENSOR_SPARKING 10
+#define Y 30
+#define X 13
+
+int cooling = SENSOR_COOLING;
+
+
+void fireSensor() {
+  static byte heat[NUM_LEDS];
+  random16_add_entropy(random());
+
+  sensors_event_t accel, mag, gyro, temp;
+  lsm.getEvent(&accel, &mag, &gyro, &temp);
+
+  float mv = accel.acceleration.x + accel.acceleration.y + accel.acceleration.z -  9.81;
+  if(mv < 0)
+    mv = mv * -1;
+
+  if(mv>3)
+    cooling -= mv;
+
+  if(cooling<40)
+    cooling = 40;
+
+  cooling += 2;
+  if(cooling>SENSOR_COOLING)
+    cooling = SENSOR_COOLING;
+
+  int plus = int(mv) * 25;
+  if(plus > 200)
+    plus = 200;
+
+
+  // cool down
+  for (int x = 0; x < X; x++) {
+      for( int y = 0; y < Y; y++) {
+        heat[y+x*Y] = qsub8( heat[y+x*Y],  random8(0, ((cooling * 10) / Y) + 2));
+      }
+  }
+  // drift up and difuse
+  for (int x = 0; x < X; x++) {
+    for( int k= Y - 1; k >= 2; k--) {
+      int kk = k;
+      int dir = 1;
+      if(x % 2 != 0) {
+        kk = 29 - k;
+        dir = -1;
+      }
+      heat[(kk+x*Y)] = (heat[(kk+x*Y) - dir] + heat[(kk+x*Y) - (2*dir)] + heat[(kk+x*Y) - (2*dir)] ) / 3;
+    }
+  }
+
+
+  // ignite
+  for(int i = 0; i < X; i++) {
+    if( random8() < SENSOR_SPARKING + plus ) {
       int y = random8(7);
       int x = i;
       int yy = y;
@@ -1063,6 +1158,7 @@ void simpleSensorSetup() {
 void gyro() {
   static float x = 0;
   static float speed = 0.01;
+  static float delta = 0.00;
   static uint8_t hue = 0;
   hue++;
 
@@ -1111,7 +1207,6 @@ void spiral() {
     }
 
   }
-
 }
 
 void spiralSetup() {
@@ -1119,7 +1214,68 @@ void spiralSetup() {
   shouldClear = false;
 }
 
+#define NUM_STARS 5
 
+struct star {
+  float x;
+  float y;
+  float speed;
+  int health;
+};
+
+typedef struct star Star;
+void createStar(Star *s);
+
+Star myStars[NUM_STARS];
+
+void createStar(Star *s) {
+  s->x = float(random8(12));
+  s->y = float(random8(30));
+  s->speed = float(random(10, 100)) / 1000;
+  s->health = random(100, 1000);
+}
+
+void stars() {
+  for(int i=0;i<NUM_STARS;i++) {
+    myStars[i].health--;
+    if(myStars[i].health == 0)
+      createStar(&myStars[i]);
+    //myStars[i].x += myStars[i].speed;
+    myStars[i].y += myStars[i].speed;
+    if(myStars[i].x>11)
+      myStars[i].x = 0.0;
+    if(myStars[i].y>30)
+      myStars[i].y = 0.0;
+    if(myStars[i].y<0)
+      myStars[i].y = 29.0;
+
+    float x = int(myStars[i].x);
+    float y = int(myStars[i].y);
+
+    // subpixel rendering
+    uint8_t bright = 255;
+    for(int i=0;i<4;i++) {
+      float f = 0;
+      if(i>0)
+        f = int(1-(y-int(y))*20);
+      bright = 255 - (i*55) + f;
+
+      if(myStars[i].health<255)
+        bright -= myStars[i].health;
+      if(bright<0)
+        bright = 0;
+
+      leds[xy(x,y-i)] = CHSV(200,255,bright);
+    }
+  }
+}
+
+void starsSetup() {
+  currentDelay = 20;
+  for(int i=0;i<NUM_STARS;i++) {
+    createStar(&myStars[i]);
+  }
+}
 
 
 // lighning from top where the last flash ignites the whole sphere
@@ -1131,7 +1287,7 @@ void lightning(){
     uint8_t length = random8(1,60);
     uint8_t duration = 5;
 
-    // last partial flash fills 
+    // last partial flash fills
     if (flash == 0){
     }else if (flash == flashes -3) {
       length = 60;
@@ -1219,13 +1375,13 @@ void readBT() {
         setMode(0);
       }
       if(buttnum == 2) {
-        setMode(4);
+        setMode(6);
       }
       if(buttnum == 3) {
-        setMode(10);
+        setMode(3);
       }
       if(buttnum == 4) {
-        setMode(16);
+        setMode(8);
       }
     }
     // Serial.print ("Button "); Serial.print(buttnum);
